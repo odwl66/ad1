@@ -1,0 +1,18 @@
+---
+title: "Problema 1 Checkpoint 2"
+author: "Órion Winter"
+output: html_document
+---
+
+Vamos primeiramente importar os dados:
+
+```{r}
+dados <- read.csv("ano-atual.csv")
+```
+
+Agora iremos olhar a estrutura dos dados:
+
+```{r}
+str(dados)
+```
+
