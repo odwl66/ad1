@@ -4,6 +4,12 @@ author: "Órion Winter"
 output: html_document
 ---
 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+```
+
 Vamos primeiramente importar os dados:
 
 ```{r}
@@ -14,5 +20,51 @@ Agora iremos olhar a estrutura dos dados:
 
 ```{r}
 str(dados)
+summary(dados)
 ```
 
+Como existem muitas variáveis e algumas delas não tem nomes tão intuitivos, utilizaremos para nos guiar a [explicação das variáveis ](http://www2.camara.leg.br/transparencia/cota-para-exercicio-da-atividade-parlamentar/explicacoes-sobre-o-formato-dos-arquivos-xml) presente no site da câmara dos deputados do Brasil.
+
+Vamos inicialmente ver quais os partidos com mais deputados, ou com diferentes deputados :
+
+```{r}
+deputados.por.partido <- dados %>%
+  group_by(sgPartido, ideCadastro) %>%
+  distinct() %>%
+  group_by(sgPartido) %>%
+  summarise(
+    num.deputados = n()
+  )
+
+ggplot(deputados.por.partido, aes(x = reorder(sgPartido, num.deputados), y = num.deputados)) +
+  geom_bar(stat = "identity") +
+  coord_flip()
+```
+
+Vemos que o partido com maior número de deputados é o PMDB, seguido pelo PT e PSDB.
+
+Veremos agora os partidos que tem maior gasto:
+
+```{r}
+gasto.por.partido <- dados %>%
+  group_by(sgPartido) %>%
+  summarise(
+    gasto = sum(vlrDocumento)
+  )
+
+ggplot(gasto.por.partido, aes(x = reorder(sgPartido, gasto), y = gasto)) +
+  geom_bar(stat = "identity") +
+  coord_flip()
+```
+
+Vemos que aparentemente, quanto maior a quantidade de deputados, maior o gasto do partido, mas vamos verificar se isso é realmente um padrão:
+
+```{r}
+partidos.numDeputados.gasto <- full_join(deputados.por.partido, gasto.por.partido, by = "sgPartido")
+
+ggplot(partidos.numDeputados.gasto, aes(x = num.deputados, y = gasto)) +
+  geom_point() +
+  scale_y_continuous(labels = comma)
+```
+
+Como podemos perceber, realmente o gasto dos partidos é proporcional ao número de deputados do partido.
