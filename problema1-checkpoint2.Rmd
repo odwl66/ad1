@@ -20,15 +20,101 @@ Agora iremos olhar a estrutura dos dados:
 
 ```{r}
 str(dados)
-summary(dados)
 ```
 
 Como existem muitas variáveis e algumas delas não tem nomes tão intuitivos, utilizaremos para nos guiar a [explicação das variáveis ](http://www2.camara.leg.br/transparencia/cota-para-exercicio-da-atividade-parlamentar/explicacoes-sobre-o-formato-dos-arquivos-xml) presente no site da câmara dos deputados do Brasil.
 
-Vamos inicialmente ver quais os partidos com mais deputados, ou com diferentes deputados :
+Vamos conferir qual o período de dados que iremos analisar:
+
+```{r}
+summary(dados$numAno)
+summary(dados$numMes)
+```
+
+Vemos que temos dados do ano de 2016 e dos meses de Janeiro a Julho.
+
+Vamos agora verificar no geral qual os valores das notas fiscais que os deputados pedem reembolso:
+
+```{r}
+ggplot(dados, aes(y = vlrDocumento, x = "deputados")) + 
+  geom_boxplot() + 
+  ggtitle("Valor das notas fiscais")
+
+summary(dados$vlrDocumento)
+```
+
+Podemos perceber algo muito estranho, pois existem valores negativos para o valor da nota fiscal! Vamos verificar se são poucos deputados que tem esses valores e qual a causa desse gasto.
+
+```{r}
+vlrDocumento.negativo <- dados %>%
+  filter(vlrDocumento < 0)  
+```
+
+Vemos que `r vlrDocumento.negativo %>% select(txNomeParlamentar) %>% distinct() %>% nrow()` parlamentares têm valor da nota fiscal negativa, logo não parece ser erro de digitação. Vamos ver qual a descrição dos gastos:
+
+```{r}
+ggplot(vlrDocumento.negativo, aes(x = txtDescricao)) +
+  geom_bar() +
+  ggtitle("Descrição das notas fiscais de valores negativos")
+```
+
+Vemos que em sua totalidade foram emissões de bilhetes aéreos. Talvez de alguma forma isso represente um ressarcimento de passagens aéreas.
+
+Vamos dar uma olhada nos deputados que gastaram mais de 75000 em apenas 1 nota fiscal:
+
+```{r}
+dados %>%
+  filter(vlrDocumento > 75000)
+```
+
+Algo muito estranho é ter o deputado FRANCISCO CHAPADINHA que gastou cerca de 300000 reais em apenas um dia na Global Gráfica da Amazônia. O que nos desperta a curiosidade nas seguintes questões:
+
+* Quais são os deputados que mais gastam no Brasil?
+* Quais são as os fornecedores que mais enriquecem com os deputados?
+
+Vamos agora ver quais os deputados que mais gastaram no Brasil no ano de 2016:
+
+```{r}
+deputados.que.mais.gastam <- dados %>%
+  group_by(txNomeParlamentar) %>%
+  summarise(gasto.total = sum(vlrDocumento)) %>%
+  arrange(desc(gasto.total))
+
+ggplot(deputados.que.mais.gastam, aes(x = "deputados", y = gasto.total)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = comma) +
+  ggtitle("Gasto dos deputados")
+
+deputados.que.mais.gastam %>%
+  head()
+```
+
+Vemos que tem um ponto que mais se destaca e por coincidência é o deputado FRANCISCO CHAPADINHA.
+
+Vamos agora ver quais fornecedores que mais enriquecem com os deputados:
+
+```{r}
+fornecedores.que.mais.ganham <- dados %>%
+  group_by(txtFornecedor) %>%
+  summarise(gasto.total = sum(vlrDocumento)) %>%
+  arrange(desc(gasto.total))
+
+ggplot(fornecedores.que.mais.ganham, aes(x = "fornecedores", y = gasto.total)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = comma) +
+  ggtitle("Fornecedores que mais recebem dinheiro dos deputados")
+
+fornecedores.que.mais.ganham %>%
+  head(n = 15)
+```
+
+Vemos que a maior parte dos gastos são com passagens aéreas, telefonia e correios, porém vemos certos fornecedores estranhos como "DOUGLAS CUNHA DA SILVA ME", "JOSELY FERNANDA DO NASCIMENTO" e "Global Gráfica da Amazônia LTDA".
+
+Vamos agora ver quais os partidos com mais deputados:
 
 ```{r}
 deputados.por.partido <- dados %>%
+  filter(!is.na(sgPartido)) %>%
   group_by(sgPartido, ideCadastro) %>%
   distinct() %>%
   group_by(sgPartido) %>%
@@ -38,7 +124,8 @@ deputados.por.partido <- dados %>%
 
 ggplot(deputados.por.partido, aes(x = reorder(sgPartido, num.deputados), y = num.deputados)) +
   geom_bar(stat = "identity") +
-  coord_flip()
+  coord_flip() +
+  ggtitle("Partidos com mais deputados")
 ```
 
 Vemos que o partido com maior número de deputados é o PMDB, seguido pelo PT e PSDB.
@@ -47,14 +134,17 @@ Veremos agora os partidos que tem maior gasto:
 
 ```{r}
 gasto.por.partido <- dados %>%
-  group_by(sgPartido) %>%
+  filter(!is.na(sgPartido)) %>%
+  group_by(sgPartido) %>%  
   summarise(
     gasto = sum(vlrDocumento)
   )
 
 ggplot(gasto.por.partido, aes(x = reorder(sgPartido, gasto), y = gasto)) +
   geom_bar(stat = "identity") +
-  coord_flip()
+  coord_flip() +
+  scale_y_continuous(label = comma) +
+  ggtitle("Partidos com mais gastos")
 ```
 
 Vemos que aparentemente, quanto maior a quantidade de deputados, maior o gasto do partido, mas vamos verificar se isso é realmente um padrão:
@@ -64,7 +154,23 @@ partidos.numDeputados.gasto <- full_join(deputados.por.partido, gasto.por.partid
 
 ggplot(partidos.numDeputados.gasto, aes(x = num.deputados, y = gasto)) +
   geom_point() +
-  scale_y_continuous(labels = comma)
+  scale_y_continuous(labels = comma) +
+  ggtitle("Relação entre gasto e número de deputados por partido")
 ```
 
 Como podemos perceber, realmente o gasto dos partidos é proporcional ao número de deputados do partido.
+
+Vamos ver agora se existe algum mês deste ano que houve maior gasto, ou todos se comportam de forma parecida:
+
+```{r}
+gastos.mensais <- dados %>%
+  group_by(numMes) %>%
+  summarise(gasto.mensal = sum(vlrDocumento))
+
+ggplot(gastos.mensais, aes(x = numMes, y = gasto.mensal)) + 
+  geom_line() +
+  scale_y_continuous(labels = comma) +
+  ggtitle("Gasto mensal dos deputados")
+```
+
+Vemos que para o mês de julho tivemos poucas observações (apenas `r dados %>% filter(numMes == 7) %>% nrow()` observações), com isso, o valor do gasto mensal de julho é bem menor que os demais. Os demais dados parecem quase uma distribuição normal, porém talvez tenha uma distribuição bimodal, porém como não temos dados do ano todo, não podemos afirmar nada.
