@@ -1,10 +1,9 @@
 ---
 title: "Problema 1 Checkpoint 2"
-author: "Órion Winter"
 output: html_document
 ---
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
 library(scales)
@@ -33,6 +32,17 @@ summary(dados$numMes)
 
 Vemos que temos dados do ano de 2016 e dos meses de Janeiro a Julho.
 
+##Parte 1
+
+#####(a) escolha um subconjunto das variáveis que você considera interessante para investigar como nossos deputados gastam sua verba e comente qual a distribuição dos dados dessas variáveis, em termos de centralidade, extremos, concentração e simetria
+
+Para esta parte escolheremos as seguintes variáveis:
+
+* vlrDocumento
+* txtDescricao
+* txNomeParlamentar
+* txtFornecedor
+
 Vamos agora verificar no geral qual os valores das notas fiscais que os deputados pedem reembolso:
 
 ```{r}
@@ -41,16 +51,20 @@ ggplot(dados, aes(y = vlrDocumento, x = "deputados")) +
   ggtitle("Valor das notas fiscais")
 
 summary(dados$vlrDocumento)
+
+ggplot(dados, aes(x = vlrDocumento)) +
+  geom_density() +
+  ggtitle("Densidade das notas fiscais")
 ```
 
-Podemos perceber algo muito estranho, pois existem valores negativos para o valor da nota fiscal! Vamos verificar se são poucos deputados que tem esses valores e qual a causa desse gasto.
+Vemos que os valores estão bem concentrados, sendo 50% dos mesmos entre 48.94 e 431.00, mas os mesmos estão bem enviesados a direita devido ao fato de termos valores muito altos, como vemos no gráfico de densidade. Podemos perceber também algo muito estranho, pois existem valores negativos para o valor da nota fiscal! Vamos verificar se são poucos deputados que tem esses valores e qual a causa desse gasto.
 
 ```{r}
 vlrDocumento.negativo <- dados %>%
   filter(vlrDocumento < 0)  
 ```
 
-Vemos que `r vlrDocumento.negativo %>% select(txNomeParlamentar) %>% distinct() %>% nrow()` parlamentares têm valor da nota fiscal negativa, logo não parece ser erro de digitação. Vamos ver qual a descrição dos gastos:
+`r vlrDocumento.negativo %>% select(txNomeParlamentar) %>% distinct() %>% nrow()` parlamentares têm valor da nota fiscal negativa, logo, aparentemente, não parece ser um erro. Porém, para não restar dúvida, vamos ver qual a descrição dos gastos de valores negativos:
 
 ```{r}
 ggplot(vlrDocumento.negativo, aes(x = txtDescricao)) +
@@ -60,11 +74,24 @@ ggplot(vlrDocumento.negativo, aes(x = txtDescricao)) +
 
 Vemos que em sua totalidade foram emissões de bilhetes aéreos. Talvez de alguma forma isso represente um ressarcimento de passagens aéreas.
 
-Vamos dar uma olhada nos deputados que gastaram mais de 75000 em apenas 1 nota fiscal:
+Agora, vamos olhar no sentido contrário, os deputados que gastaram mais de 75000 em apenas 1 nota fiscal:
 
 ```{r}
-dados %>%
+maiores.gastos <- dados %>%
   filter(vlrDocumento > 75000)
+
+maiores.gastos
+
+ggplot(maiores.gastos, aes(x = txNomeParlamentar, y = vlrDocumento)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = comma) +
+  ggtitle("Maiores gastos em 1 nota fiscal por deputado")
+
+ggplot(maiores.gastos, aes(x = txtFornecedor, y = vlrDocumento)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = comma) +
+  ggtitle("Maiores gastos em 1 nota fiscal por fornecedor") +
+  coord_flip()
 ```
 
 Algo muito estranho é ter o deputado FRANCISCO CHAPADINHA que gastou cerca de 300000 reais em apenas um dia na Global Gráfica da Amazônia. O que nos desperta a curiosidade nas seguintes questões:
@@ -89,7 +116,7 @@ deputados.que.mais.gastam %>%
   head()
 ```
 
-Vemos que tem um ponto que mais se destaca e por coincidência é o deputado FRANCISCO CHAPADINHA.
+Vemos que tem um ponto que mais se destaca e por coincidência é o deputado FRANCISCO CHAPADINHA, onde ele gastou quase R$200000,00 a mais em relação ao 2º que mais gastou.
 
 Vamos agora ver quais fornecedores que mais enriquecem com os deputados:
 
@@ -109,6 +136,24 @@ fornecedores.que.mais.ganham %>%
 ```
 
 Vemos que a maior parte dos gastos são com passagens aéreas, telefonia e correios, porém vemos certos fornecedores estranhos como "DOUGLAS CUNHA DA SILVA ME", "JOSELY FERNANDA DO NASCIMENTO" e "Global Gráfica da Amazônia LTDA".
+
+##### Resposta (a):
+##### O valor das notas fiscais estão bem concentrados, pois 50% dos dados estão entre R$48,94 e R$431,00.
+##### Porém existem uma grande quantidade de valores fora desta faixa, variando de -R$2911,00 e R$97200,00. 
+##### Os gráfico da densidade mostra que os dados são bastante enviesados a direita, logo são bastante assimétricos.
+##### Com relação a centralidade dos dados, provavelmente a mediana dos dados represente melhor o conjunto do que a média, tendo em vista a assimetria dos mesmos.
+
+#####(b) há algo surpreendente ou estranho nos dados? 
+
+##### Resposta (b):
+##### Como vimos anteriormente, os dados do valor da nota fiscal são bem estranhos, pois é difícil imaginar que existam valores negativos, porém quando investigamos mais a fundo, pudemos perceber que todos os dados se tratam de emissão de bilhetes aéreos.
+
+#####(c) como você sugere que um analista de dados lide com a parte surpreendente/estranha?
+
+##### Resposta (c):
+##### Para este caso específico, como concluímos que os valores negativos são provenientes de ressarcimentos das companhias aéreas, nas análises subsequentes que utilizam o valor da nota fiscal, seria interessante o analista de dados remover esses valores negativos, para que o gasto dos políticos não fique negativo, dando a entender que ele "doa dinheiro para o estado". Porém não podemos generalizar, pois cada caso é um caso.
+
+Vamos explorar um pouco mais os dados para conhecê-los melhor.
 
 Vamos agora ver quais os partidos com mais deputados:
 
@@ -133,7 +178,10 @@ Vemos que o partido com maior número de deputados é o PMDB, seguido pelo PT e 
 Veremos agora os partidos que tem maior gasto:
 
 ```{r}
-gasto.por.partido <- dados %>%
+dados.positivos <- dados %>% 
+  filter(vlrDocumento >= 0)
+
+gasto.por.partido <- dados.positivos %>%
   filter(!is.na(sgPartido)) %>%
   group_by(sgPartido) %>%  
   summarise(
@@ -147,7 +195,7 @@ ggplot(gasto.por.partido, aes(x = reorder(sgPartido, gasto), y = gasto)) +
   ggtitle("Partidos com mais gastos")
 ```
 
-Vemos que aparentemente, quanto maior a quantidade de deputados, maior o gasto do partido, mas vamos verificar se isso é realmente um padrão:
+Vemos que aparentemente, quanto maior a quantidade de deputados, maior o gasto do partido, pois segue quase a mesma ordem, mas vamos verificar se isso é realmente um padrão:
 
 ```{r}
 partidos.numDeputados.gasto <- full_join(deputados.por.partido, gasto.por.partido, by = "sgPartido")
@@ -163,7 +211,7 @@ Como podemos perceber, realmente o gasto dos partidos é proporcional ao número
 Vamos ver agora se existe algum mês deste ano que houve maior gasto, ou todos se comportam de forma parecida:
 
 ```{r}
-gastos.mensais <- dados %>%
+gastos.mensais <- dados.positivos %>%
   group_by(numMes) %>%
   summarise(gasto.mensal = sum(vlrDocumento))
 
@@ -173,4 +221,52 @@ ggplot(gastos.mensais, aes(x = numMes, y = gasto.mensal)) +
   ggtitle("Gasto mensal dos deputados")
 ```
 
-Vemos que para o mês de julho tivemos poucas observações (apenas `r dados %>% filter(numMes == 7) %>% nrow()` observações), com isso, o valor do gasto mensal de julho é bem menor que os demais. Os demais dados parecem quase uma distribuição normal, porém talvez tenha uma distribuição bimodal, porém como não temos dados do ano todo, não podemos afirmar nada.
+O mês de julho teve poucas observações (apenas `r dados.positivos %>% filter(numMes == 7) %>% nrow()` observações), com isso, o valor do gasto mensal de julho é bem menor que os demais. Os demais dados parecem quase uma distribuição normal, porém como não temos dados do ano todo, não podemos afirmar nada.
+
+## Parte 2
+
+#####a. Em que tipo de despesas nossos parlamentares gastam mais recursos de sua cota?
+
+Vamos agora ver quais são as maiores causas de gasto dos deputados:
+
+```{r}
+causa.dos.gastos <- dados.positivos %>%
+  group_by(txtDescricao) %>%
+  summarise(valor.total = sum(vlrDocumento))
+
+ggplot(causa.dos.gastos, aes(x = reorder(txtDescricao, valor.total), y = valor.total)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_y_continuous(label = comma) +
+  ggtitle("Tipo de despesas parlamentar que mais gastam")
+```
+
+##### Resposta (a):
+#####Vemos que as despesas que gastam mais recursos são as divulgações das atividades parlamentares, seguido da emissão de bilhetes aéreos e locação de veículos.
+
+#####b. Quais tipos de despesas têm despesas que mais variam, que têm valores mais desiguais?
+
+Vamos agora verificar quais as despesas que mais variam:
+
+```{r, fig.width=10, fig.height=10}
+ggplot(dados.positivos, aes(x = reorder(txtDescricao, vlrDocumento), y = vlrDocumento, group = txtDescricao)) +
+  geom_boxplot() +
+  coord_flip() +
+  ggtitle("Variabilidade dos tipos de despesas parlamentares") +
+  theme(axis.text.y = element_text(size=7))
+
+dp.descricoes <- dados.positivos %>%
+  group_by(txtDescricao) %>%
+  summarise(
+    dp = sd(vlrDocumento)
+    )
+
+ggplot(dp.descricoes, aes(x = reorder(txtDescricao, dp), y = dp)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ggtitle("Desvio padrão das atividades parlamentares") +
+  theme(axis.text.y = element_text(size=7))
+```
+
+##### Resposta (b):
+##### As despesas que mais variam são as divulgações de atividades parlamentares, seguido de consultorias, pesquisas e trabalhos técnicos.
