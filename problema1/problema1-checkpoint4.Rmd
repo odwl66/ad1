@@ -1,0 +1,238 @@
+---
+title: "Problema 1 Checkpoint 4"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+```
+
+Para este checkpoint iremos responder as seguintes perguntas:
+
+#### Quem são os deputados que mais gastaram com comida em apenas 1 refeição?
+
+#### Os diferentes tipos de despesa se comportam de forma parecida ao decorrer de um mês?
+
+Iniciaremos agora com a primeira:
+
+```{r}
+dados <- read.csv("ano-atual.csv")
+```
+
+Vamos ver qual o período de dados que temos:
+
+```{r}
+summary(dados$numAno)
+summary(dados$numMes)
+```
+
+Vemos que nossos dados são apenas de 2016 e temos meses entre janeiro (1) e julho (7).
+
+Vamos ver qual o valor que os deputados gastam no geral:
+
+```{r}
+dados.alimentacao <- dados %>%
+  filter(txtDescricao == "FORNECIMENTO DE ALIMENTAÇÃO DO PARLAMENTAR")
+
+ggplot(dados.alimentacao, aes(x = "vlrDocumento", y = vlrDocumento)) +
+  geom_boxplot() +
+  ggtitle("Gasto com alimentação em uma nota fiscal")
+
+summary(dados.alimentacao$vlrDocumento)
+```
+
+Temos `r nrow(dados.alimentacao)` observações em que o valor da nota fiscal é referente a alimentação, onde o valor mínimo é `r summary(dados.alimentacao$vlrDocumento)[1]` e o máximo é `r summary(dados.alimentacao$vlrDocumento)[6]`, 75% dos dados estão abaixo de `r summary(dados.alimentacao$vlrDocumento)[5]` e a mediana é `r summary(dados.alimentacao$vlrDocumento)[3]`.
+
+Vamos ver a distribuição dos dados:
+
+```{r}
+ggplot(dados.alimentacao, aes(x = vlrDocumento)) +
+  geom_density() +
+  ggtitle("Densidade dos gastos")
+```
+
+Vemos que a maioria dos valores de alimentação realmente estão bem concentrados, mas existe uma pequena cocentração em cerca de R$700,00.
+
+Vamos ver os 20 deputados que mais gastaram em apenas uma refeição:
+
+```{r}
+dados.alimentacao.exorbitantes <- dados.alimentacao %>%
+  arrange(desc(vlrDocumento)) %>%
+  filter(row_number() <= 20)
+
+dados.alimentacao.exorbitantes %>% select(sgPartido, txNomeParlamentar, vlrDocumento) %>% head()
+```
+
+Vemos que dos primeiros 6 que mais gastam, 5 não tem nome atribuído e sim a liderança de um partido. Talvez isso represente quando um conjunto de parlamentares fizeram uma refeição juntos.
+
+Vamos ver agora apenas os que não representam a liderança (onde sgPartido é NA), mas apenas um parlamentar:
+
+```{r}
+dados.alimentacao.exorbitantes <- dados.alimentacao.exorbitantes <- dados.alimentacao %>%
+  arrange(desc(vlrDocumento)) %>%
+  filter(!is.na(sgPartido)) %>%
+  filter(row_number() <= 20)
+
+dados.alimentacao.exorbitantes %>% select(sgPartido, txNomeParlamentar, vlrDocumento, datEmissao)
+```
+
+Vemos que o deputado JOÃO CASTELO foi o que mais gastou em apenas 1 valor de nota fiscal, mas vemos que cada nota fiscal dele foi paga no inicio de meses diferentes. Talvez isso seja um indício que não foi o valor gasto em apenas uma refeição, mas sim de todas as refeições de um mês.
+
+Com isso nos questionamos com a seguinte pergunta:
+
+####Qual o deputado que mais gastou no ano de 2016 com refeições?
+
+Veja que antes estávamos falando de maiores gastos em apenas 1 refeição e agora estamos falando de forma acumulada.
+
+Veremos a seguir:
+
+```{r}
+gasto.alimentacao.deputados <- dados.alimentacao %>%
+  group_by(txNomeParlamentar) %>%
+  summarise(
+      gasto.alimentacao = sum(vlrDocumento)
+    )
+
+ggplot(gasto.alimentacao.deputados, aes(x = "deputado", y = gasto.alimentacao)) + 
+  geom_boxplot() +
+  ggtitle("Gasto com alimentação por deputado")
+
+summary(gasto.alimentacao.deputados$gasto.alimentacao)
+```
+
+Vemos que a mediana de gasto com alimentação dos deputados é de `r median(gasto.alimentacao.deputados$gasto.alimentacao)` reais e 75% dos deputados gastam menos que `r summary(gasto.alimentacao.deputados$gasto.alimentacao)[5]`
+
+```{r}
+gasto.alimentacao.deputados %>%
+  arrange(desc(gasto.alimentacao)) %>%
+  head(10)
+```
+
+Vemos que dos 10 deputados que mais gastam, 3 são junções de diversos deputados (LIDERANÇA DO PSDB, LIDERANÇA DO PT e PROS), mas o deputado que mais se destaca é ROBERTO FREIRE com um gasto parcial do ano de R$17024,98, cerca de 11,3 vezes maior que a mediana, em seguida LUIZ CARLOS RAMOS, com um gasto de R$11228,74, bem menor que o primeiro colocado.  
+
+Agora vamos ver como os diferentes tipos de despesa se comportam no decorrer de um mês:
+
+```{r}
+gasto.por.dia.do.mes <- dados %>%
+  mutate(
+    dia = day(as.Date(datEmissao))
+    ) %>%
+  group_by(dia, txtDescricao) %>%
+  summarise(
+    gasto.acum = sum(vlrDocumento)
+    )
+
+ggplot(gasto.por.dia.do.mes, aes(x = dia, y = gasto.acum)) +
+  geom_line() +
+  facet_wrap(~ txtDescricao, scales = "free") +
+  ggtitle("Gasto geral do dia do mês por tipo de gasto")
+```
+
+Algumas considerações que podemos fazer:
+
++ Combustíveis e lubrificantes tem um maior gasto no início e no final do mês.
++ Consultorias, pesquisas e trabalhos técnicos tem maior gasto no início do mês.
++ Divulgação de atividade parlamentar parece ter um maior gasto no início do mês.
++ Emissão de bilhetes aéreos é bastante variável, mas tem um pico perto da metade do mês.
++ Fornecimento de alimentação do parlamentar tem um maior gasto antes do dia 20.
++ Lotação ou fretamento de embarcações tem um grande gasto até o dia 10.
++ Lotação ou fretamento de veículos automotores tem um gasto maior no início do mês, mas tem um certo aumento no final também.
++ Manutenção de escritórios de apoio à atividade parlamentar tem um maior gasto no início do mês.
++ Participação em curso, palestra ou evento similar tem um gasto grande entre o dai 15 e 20.
++ Passagens terrestres, marítimas ou fluviais tem um pico no dia 10.
++ Serviço de segurança prestado por empresa especializada tem um gasto maior no início e final do mês.
++ Serviço de táxi, pedágio e estacionamento tem dois picos, perto do dia 4 e 17.
++ Serviços postais tem um maior gasto tem um maior gasto até o dia 5.
++ Telefonia tem um gasto maior no início e metade do mês.
+
+Mas será que isso é realmente um padrão para todos os meses?
+
+```{r}
+gasto.por.dia.e.mes <- dados %>%
+  mutate(
+    dia = day(as.Date(datEmissao))
+    ) %>%
+  group_by(dia, numMes, txtDescricao) %>%
+  summarise(
+    gasto.acum = sum(vlrDocumento)
+    )
+
+ggplot(gasto.por.dia.e.mes, aes(x = dia, y = gasto.acum, group = numMes)) +
+  geom_line() +
+  facet_wrap(~ txtDescricao, scales = "free") + 
+  ggtitle("Gasto geral do dia dos meses por tipo de gasto")
+```
+
+Pelo visto a apenas algumas parecem seguir o padrão descrito acima, tais quais:
+
++ Combustíveis e lubrificantes
++ Consultoria, pesquisas e trabalhos técnicos
++ Divulgação da atividade parlamentar
++ Locação ou fretamento de veículos automotores
++ Manutenção de escritório de apoio à atividade parlamentar
++ Participação em curso, palestra ou evento similar
++ Passagens terrestres, marítimas ou fluviais
++ Serviço de segurança prestado por empresa especializada
+
+Grande parte das despesas parecem ser dentro do esperado, algumas com um aumento no início ou no final do mês e algumas com um aumento no meio do mês também. Com isso, apenas alguns tipos de despesa se comportam de maneira parecida.
+
+Algo que eu particularmente não esperava é que consultorias, pesquisas e trabalhos técnicos seguissem um padrão. O que nos leva a seguinte pergunta:
+
+####Qual o deputado que gasta mais com esse tipo de despesa (consultorias, pesquisas e trabalhos técnicos)?
+
+```{r}
+dados.pesquisa <- dados %>%
+  filter(txtDescricao == "CONSULTORIAS, PESQUISAS E TRABALHOS TÉCNICOS.")
+
+ggplot(dados.pesquisa, aes(vlrDocumento)) +
+  geom_density() +
+  ggtitle("Densidade de valores gasto com consultorias, pesquisas e trabalhos técnicos")
+```
+
+Vemos que grande parte dos documentos tem valor menor que R$15000,00, mas algo estranho é ter um ligeiro pico em cerca de R$30000,00.
+
+```{r}
+ggplot(dados.pesquisa, aes(x = "gasto", y = vlrDocumento)) +
+  geom_boxplot() +
+  ggtitle("Gasto de consultorias, pesquisas e trabalhos técnicos por documento")
+
+summary(dados.pesquisa$vlrDocumento)
+```
+
+Vemos que os valores variam entre `r summary(dados.pesquisa$vlrDocumento)[1]` e `r summary(dados.pesquisa$vlrDocumento)[6]`, a mediana é de `r summary(dados.pesquisa$vlrDocumento)[3]` e 75% dos valores são menores que `r summary(dados.pesquisa$vlrDocumento)[5]`. Vemos também que alguns deputados se destaca no valor de apenas uma nota fiscal. Vejamos quem são esses:
+
+```{r}
+dados.pesquisa %>%
+  arrange(desc(vlrDocumento)) %>%
+  select(sgPartido, txNomeParlamentar, vlrDocumento) %>%
+  head(15)
+```
+
+Vemos que alguns nomes como MARX BELTRÃO e VICENTINHO JÚNIOR se repetem mais de uma vez. Então vejamos o total gasto por deputado no ano de 2016:
+
+```{r}
+dados.pesquisa.por.deputado <- dados.pesquisa %>%
+  group_by(txNomeParlamentar, sgPartido) %>%
+  summarise(
+    gasto = sum(vlrDocumento)
+    )
+
+ggplot(dados.pesquisa.por.deputado, aes("deputado", gasto)) +
+  geom_boxplot() +
+  ggtitle("Gasto dos deputados com consultorias, pesquisas e trabalhos técnicos")
+
+summary(dados.pesquisa.por.deputado$gasto)
+```
+
+Vemos que os deputados gastam entre R$50,00 e R$144000,00, tendo uma mediana de gasto de R$25000,00. 75% dos deputados gastam menos que R$46500,00. Vamos ver quem são os deputados que mais gastam:
+
+```{r}
+dados.pesquisa.por.deputado %>%
+  ungroup() %>%
+  arrange(desc(gasto)) %>%
+  head()
+```
+
+Vemos que o deputado com maior gasto é DOMINGOS NETO, onde o mesmo teve gasto mais de 3 vezes maior que a mediana.

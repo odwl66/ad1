@@ -1,0 +1,12 @@
+1. O valor gasto por políticos em passagens aéreas tem relação com a distância de seu estado até Brasília?
+	- Acredito que sim, dado que quanto mais perto do destino mais barata será a passagem.
+2. O valor gasto em divulgação de atividade parlamentar de um partido tem relação com a quantidade de deputados?
+	- Acredito que sim, pois quanto maior o valor investido na campanha, maior o público atingido e provavelmente maior o número de deputados eleitos.
+3. Existe algum período do mês que o gasto dos deputados aumenta?
+	- Acredito que durante os dias de semana apenas, dado que são os dias que os deputados estão trabalhando.
+4. Existem diferenças significativas do valor da glosa de acordo com cada partido?
+	- Acredito que apenas em valores absolutos, mas se for relativo ao número de parlamentares do partido não haverá diferença.
+5. Existe alguma relação do valor da glosa com o tipo da despesa?
+	- Acredito que sim, dado que alguns serviços como telefonia ou transporte são mais fundamentais para o trabalho dos parlamentares do que outros.
+6. Os diferentes tipos de despesa se comportam de forma parecida ao decorrer de um mes?
+	- Acredito que não, pois algumas despesas como transporte aéreo devem ser mais presentes nos finais de semana, enquanto telefonia deve ser mais presente nos dias de semana.

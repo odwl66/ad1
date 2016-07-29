@@ -1,0 +1,59 @@
+---
+title: "Problema 2 Checkpoint 2"
+output: html_document
+---
+
+Vamos ver os deputados que mais se destacam em cada tipo de gasto:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=15}
+library(dplyr)
+library(ggplot2)
+library(scales)
+dados <- read.csv("../problema1/ano-atual.csv")
+
+# dados.alimentacao <- dados %>%
+#   filter(txtDescricao == "FORNECIMENTO DE ALIMENTAÇÃO DO PARLAMENTAR" & !is.na(sgPartido)) %>%
+#   group_by(txNomeParlamentar, sgPartido, dia.semana, dia.semana.ordem) %>%
+#   summarize(gasto = sum(vlrDocumento))
+# 
+# ggplot(dados.alimentacao, aes(x = reorder(dia.semana, dia.semana.ordem), y = gasto)) +
+#   geom_boxplot() +
+#   geom_jitter(aes(colour = sgPartido))
+
+dados.pb <- dados %>% 
+  filter(sgUF == "PB") %>%
+  mutate(txtDescricao = tolower(txtDescricao)) %>%
+  group_by(txNomeParlamentar, txtDescricao, sgPartido) %>%
+  summarise(gasto = sum(vlrDocumento))
+
+dados.pb$txtDescricao <- sapply(dados.pb$txtDescricao, 
+                      FUN = function(x) {paste(strwrap(x, width = 28), collapse = "\n")})
+
+ggplot(dados.pb) +
+  geom_bar(aes(x = txNomeParlamentar, y = gasto, fill = sgPartido), stat = "identity") +
+  facet_wrap(~txtDescricao, scales = "free") + 
+  theme(axis.text.x = element_text(angle = 75, hjust = 1)) + 
+  scale_y_continuous(labels = comma) +
+  ggtitle("Gasto dos parlamentares nos diferentes tipos de gasto")
+```
+
+Vamos verificar os gastos dos deputados que mais se destacam nos diferentes tipos de gasto:
+
++ assinatura de publicações - Aguinaldo Ribeiro (PP)
++ combustíveis e lubrificantes - Manoel Junior (PMDB)
++ consultorias, pesquisas e trabalhos técnicos - Hugo Motta (PMDB)
++ divulgação de atividade parlamentar - Veneziano Vital do Rêgo (PMDB)
++ emissão de bilhete aéreo - Damião Feliciano (PDT)
++ fornecimento de alimentação do parlamentar - Wellington Roberto (PR)
++ hospedagem ,exceto do parlamentar no distrito federal. - Damião Feliciano (PDT)
++ locação ou fretamento de veículos automotores - Benjamin Maranhão (SD)
++ manutenção de escritório de apoio à atividade parlamentar - Aguinaldo Ribeiro (PP), Luiz Couto (PT)
++ passagens aéreas - Hugo Motta (PMDB)
++ serviço de segurança prestado por empresa especializada. - Rômulo Gouveia (PSD)
++ serviço de táxi, pedágio e estacionamento - Wellington Roberto (PR)
++ serviços postais - Aguinaldo Ribeiro (PP), Efraim Filho (DEM) e Rômulo Gouveia (PSD)
++ telefonia - Manoel Junior (PMDB)
+
+Vale ressaltar que os deputados que mais apareceram acima não necessariamente são os que mais gastam, visto que eles se destacam apenas em sua categoria de gasto respectiva, além de cada categoria ter uma escala diferente, porém em muitos casos valeria a pena investigar o motivo deles serem destaque.
+
+
