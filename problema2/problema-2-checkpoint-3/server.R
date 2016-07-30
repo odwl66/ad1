@@ -11,7 +11,7 @@ library(shiny)
 library(dplyr)
 library(ggplot2)
 library(scales)
-dados <- read.csv("../../problema1/ano-atual.csv")
+dados <- read.csv("ano-atual.csv")
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
