@@ -1,0 +1,65 @@
+---
+title: "Problema 3 Checkpoint 1"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(reshape2)
+```
+
+```{r}
+emendas.areas.parlamentar <- read.csv("emendas_area_parlamentar.csv")
+```
+
+Vamos inicialmente ver quais dados temos:
+
+```{r}
+emendas.areas.parlamentar %>% head()
+```
+
+Vemos que cada observação é um parlamentar, onde a primeira coluna é o nome do mesmo, e as demais representam o investimento total que ele fez na área especificada.
+
+Vamos ver como se comportam os dados das áreas:
+
+```{r}
+melted.emendas.areas.parlamentar <- melt(emendas.areas.parlamentar, id=c("NOME_PARLAMENTAR")) 
+
+ggplot(melted.emendas.areas.parlamentar, aes(value)) +
+  geom_histogram() +
+  facet_wrap(~variable)
+```
+
+Como vemos, os dados são bastante enviesados, logo iremos utilizar a função log em cima dos mesmos:
+
+```{r}
+melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
+  mutate(
+    log.value = log(value)
+  )
+
+ggplot(melted.emendas.areas.parlamentar, aes(log.value)) +
+  geom_histogram() +
+  facet_wrap(~variable, scales = "free")
+```
+
+Grande parte dos dados parecem seguir uma distribuição normal, ou pelo menos próximo de uma normal.
+
+Agora, vamos ver se existe correlação entre as áreas especificadas:
+
+```{r}
+corr.emendas.areas.parlamentar <- cor(emendas.areas.parlamentar %>% select(-NOME_PARLAMENTAR))
+corrplot(corr.emendas.areas.parlamentar, type="upper", order="hclust", tl.col="black", tl.srt=45)
+```
+
+Vemos que as áreas com maior correlação são:
+* Comércio e Lazer com Cultura
+* Direito da cidadania com Segurança Pública
+* Gestão Ambiental com Indústria
+* Saneamento com Urbanismo
+* Assistência Social com Organização Agrária
+
+Os demais tem correlação não muito alta, ou próximo de zero.
+
