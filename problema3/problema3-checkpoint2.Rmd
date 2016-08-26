@@ -1,0 +1,127 @@
+---
+title: "problema3-checkpoint2"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(reshape2)
+library(Rtsne)
+set.seed(123456)
+```
+
+```{r}
+emendas.areas.parlamentar <- read.csv("emendas_area_parlamentar.csv")
+```
+
+Vamos inicialmente ver quais dados temos:
+
+```{r}
+emendas.areas.parlamentar %>% head()
+```
+
+Vemos que cada observação é um parlamentar, onde a primeira coluna é o nome do mesmo, e as demais representam o investimento total que ele fez na área especificada.
+
+Vamos ver como se comportam os dados das áreas:
+
+```{r}
+melted.emendas.areas.parlamentar <- melt(emendas.areas.parlamentar, id=c("NOME_PARLAMENTAR")) 
+
+ggplot(melted.emendas.areas.parlamentar, aes(value)) +
+  geom_histogram() +
+  facet_wrap(~variable)
+```
+
+Como vemos, os dados são bastante enviesados, logo iremos utilizar a função log em cima dos mesmos:
+
+```{r}
+melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
+  mutate(
+    log.value = log(value)
+  )
+
+ggplot(melted.emendas.areas.parlamentar, aes(log.value)) +
+  geom_histogram() +
+  facet_wrap(~variable, scales = "free")
+```
+
+Grande parte dos dados parecem seguir uma distribuição normal, ou pelo menos próximo de uma normal.
+
+Vamos remover os valores infinitos gerados pelo log:
+
+```{r}
+melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
+  mutate(
+    non.infinite.log.value = ifelse(is.infinite(log.value), 0, log.value)
+  )
+
+emendas.area.2 <- dcast(select(melted.emendas.areas.parlamentar, -value, -log.value), NOME_PARLAMENTAR ~ variable)
+
+emendas.area.2 <- emendas.area.2 %>%
+  filter(!is.na(NOME_PARLAMENTAR))
+
+row.names(emendas.area.2) <- as.character(emendas.area.2$NOME_PARLAMENTAR)
+```
+
+Agora vamos reduzir a dimensão dos dados utilizando a técnica PCA:
+
+```{r}
+principal.components <- prcomp(select(emendas.area.2, -NOME_PARLAMENTAR), scale = TRUE)
+#kable(principal.components$rotation)
+#biplot(principal.components, scale = 0)
+
+#autoplot(principal.components, label = TRUE, label.size = 3, shape = FALSE)
+
+autoplot(principal.components, label = TRUE, label.size = 3, shape = FALSE, 
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
+```
+
+Vamos ver qual a porcentagem da variância explicada quando reduzimos as dimensões:
+
+```{r}
+plot_pve <- function(prout){
+  pr.var <- pr.out$sdev ** 2
+  pve <- pr.var / sum(pr.var)
+  df = data.frame(x = 1:NROW(pve), y = cumsum(pve))
+  ggplot(df, aes(x = x, y = y)) + 
+    geom_point(size = 3) + 
+    geom_line() + 
+    labs(x='Principal Component', y = 'Cumulative Proportion of Variance Explained')
+}
+
+plot_pve(principal.components)
+```
+
+Vemos que infelizmente ao reduzir a apenas 2 dimensões perdemos significativamente variância do dado original, visto que ficamos com pouco mais de 20%. Porém como o intuito também é agrupar os parlamentares, o ideal é que a redução seja a 2 dimensões.
+
+Agora vamos reduzir as dimensões utilizando outra técnica chamada t-SNE:
+
+```{r}
+# emendas.area.3 <- emendas.area.2 %>%
+#   group_by(NOME_PARLAMENTAR) %>%
+#   summarise_all()
+tsne.dim = Rtsne(select(emendas.area.2, -NOME_PARLAMENTAR), 
+                 verbose = TRUE, 
+                 check_duplicates = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
