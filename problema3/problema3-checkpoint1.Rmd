@@ -3,18 +3,22 @@ title: "Problema 3 Checkpoint 1"
 output: html_document
 ---
 
-```{r}
+```{r, message=FALSE, fig.width=10, fig.height=15}
 library(dplyr)
 library(corrplot)
 library(ggplot2)
 library(reshape2)
+library(ggfortify)
+library(cluster)
+library(ggdendro)
+theme_set(theme_bw())
 ```
 
 ```{r}
 emendas.areas.parlamentar <- read.csv("emendas_area_parlamentar.csv")
 ```
 
-Vamos inicialmente ver quais dados temos:
+Vamos inicialmente ver a estrutura dos dados que iremos trabalhar:
 
 ```{r}
 emendas.areas.parlamentar %>% head()
@@ -49,17 +53,120 @@ Grande parte dos dados parecem seguir uma distribuição normal, ou pelo menos p
 
 Agora, vamos ver se existe correlação entre as áreas especificadas:
 
-```{r}
+```{r, fig.height=7}
 corr.emendas.areas.parlamentar <- cor(emendas.areas.parlamentar %>% select(-NOME_PARLAMENTAR))
-corrplot(corr.emendas.areas.parlamentar, type="upper", order="hclust", tl.col="black", tl.srt=45)
+corrplot(corr.emendas.areas.parlamentar, type="upper", tl.col="black", tl.srt=45)
 ```
 
 Vemos que as áreas com maior correlação são:
-* Comércio e Lazer com Cultura
+
+* Comércio e Serviços com Cultura
 * Direito da cidadania com Segurança Pública
 * Gestão Ambiental com Indústria
 * Saneamento com Urbanismo
 * Assistência Social com Organização Agrária
+* Ciencia e Tecnologia com Gestão Ambiental
+* Ciencia e Tecnologia com Indústria
 
 Os demais tem correlação não muito alta, ou próximo de zero.
 
+O mesmo pode ser verificado ao aplicar a função logarítmica logs:
+
+```{r, fig.height=7}
+melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
+  mutate(
+    log.value = ifelse(is.infinite(log.value), 0, log(value))
+  )
+
+log.emendas.areas.parlamentar <- dcast((melted.emendas.areas.parlamentar %>% select(-value)), NOME_PARLAMENTAR  ~ variable)
+
+corr.log.emendas.areas.parlamentar <- cor(log.emendas.areas.parlamentar %>% select(-NOME_PARLAMENTAR))
+corrplot(corr.log.emendas.areas.parlamentar, type="upper", tl.col="black", tl.srt=45)
+```
+
+#####(i) que método escolheu usar e por que?
+
+* Como pudemos ver acima, a maioria das variáveis parecem seguir uma distribuição normal, porém ao vermos o correlograma percebemos que poucas áreas têm alta correlação. Com isso podemos imaginar que não existe uma ordem hierarquia associada aos dados, visto a baixa correlação entre as áreas, logo iremos agrupar usando K-means.
+
+Agora iremos agrupar os parlamentares de acordo com seus gastos em diferentes áreas:
+
+#####(ii) que parâmetros usou no método e por que?
+
+* Para escolher o número de clusters, iremos iniciar com 2 e analisar se a medida que aumentamos a quantidade, eles são mais representativos, ou não até encontrar um valor satisfatório. Para garantir que o K-means não deu azar de pegar um grupo pouco significativo, será repetido 10 vezes o algoritmo.
+
+```{r}
+log.emendas.areas.parlamentar <- log.emendas.areas.parlamentar %>%
+  mutate(
+      NOME_PARLAMENTAR = ifelse(is.na(NOME_PARLAMENTAR), "Outro", NOME_PARLAMENTAR)
+    )
+
+cluster.areas.emendas <- log.emendas.areas.parlamentar %>% select(-NOME_PARLAMENTAR)
+row.names(cluster.areas.emendas) <- log.emendas.areas.parlamentar$NOME_PARLAMENTAR
+distancias <- dist(cluster.areas.emendas)
+
+km2 <- kmeans(cluster.areas.emendas, centers = 2, nstart = 10)
+
+autoplot(km2, data = log.emendas.areas.parlamentar)
+```
+
+```{r, fig.height=13}
+plot(silhouette(km2$cluster, distancias), col = "black")
+```
+
+Como vemos, ao agrupar os pontos em 2 grupos, os mesmo ficam bem divididos. A largura média da silhueta é de 0.22, onde o ideal é que se aproximasse de 1 e tem poucas abaixo de zero.
+
+Vamos aumentar para 3 grupos:
+
+```{r}
+km3 <- kmeans(cluster.areas.emendas, centers = 3, nstart = 10)
+
+autoplot(km3, data = log.emendas.areas.parlamentar)
+```
+```{r, fig.height=13}
+plot(silhouette(km3$cluster, distancias), col = "black")
+```
+
+Como vemos, os grupos também ficam bem divididos, porém não tem mais uma "margem" que os separa. A largura média da silhueta é de 0.2 e tem poucas abaixo de zero.
+
+Vamos aumentar para 4 grupos:
+
+```{r}
+km4 <- kmeans(cluster.areas.emendas, centers = 4, nstart = 10)
+
+autoplot(km4, data = log.emendas.areas.parlamentar)
+```
+```{r, fig.height=13}
+plot(silhouette(km4$cluster, distancias), col = "black")
+```
+
+Como vemos, os pontos estão divididos, porém começam a se misturar um pouco. A largura da silhueta é de 0.22, tendo apenas 1 observação abaixo de 0.
+
+Como a tendência é os pontos cada vez ficarem mais difusos, vamos parar com 4 grupos.
+
+#####(iii) qual a qualidade do agrupamento final encontrado
+
+Utilizamos anteriormente a silhueta para medir a qualidade do agrupamento, onde a mesma varia entre -1 e 1. Quanto mais próximo de 1, mais representativos são os grupos. Com isso, a qualidade do agrupamento final encontrado é razoável, tendo em vista que uma largura média da silhueta é de 0.22.
+
+#####(iv) que conclusões é possível tirar sobre os dados (no vocabulário do domínio do problema) através dos métodos. 
+
+Para responder esta pergunta veremos se os grupos tem relação com o maior tipo de gasto de cada parlamentar:
+
+```{r, fig.height=7, fig.width=10}
+log.emendas.areas.parlamentar$group <- km4$cluster
+melted.log.emendas.areas.parlamentar <- melt(log.emendas.areas.parlamentar, id=c("NOME_PARLAMENTAR", "group"))
+
+ggplot(melted.log.emendas.areas.parlamentar, aes(x = variable, y = value, colour = variable)) + 
+  geom_boxplot() + 
+  geom_point(alpha = 0.2, position = position_jitter(width = .2)) + 
+  theme(axis.text.x = element_text(angle = 75, hjust = 1)) + 
+  facet_wrap(~ group)
+```
+
+Vemos que:
+
+* O grupo 1 se destaca em investir um pouco mais que os outros em Organização Agrária.
+* O grupo 2 se destaca em não investir em Saneamento, Urbanismo, Agricultura e Assistência Social.
+* O grupo 3 se destaca em não investir em Cultura, Comércio e Serviços.
+* O grupo 4 se destaca em investir em Ciência e tecnologia, Gestão Ambiental e Indústria.
+
+As demais áreas mais de um grupo se destaca em investir ou não investir.
