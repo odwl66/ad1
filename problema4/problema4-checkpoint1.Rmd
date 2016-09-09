@@ -1,0 +1,121 @@
+---
+title: "Problema 4 - Checkpoint 1"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(resample)
+```
+
+Neste problema iremos trabalhar em cima de dados de filmes.
+
+Primeiramente veremos a estrutura dos nossos dados:
+
+```{r}
+movies <- read.csv("ml-latest-small/movies.csv")
+ratings <- read.csv("ml-latest-small/ratings.csv")
+
+head(movies)
+```
+
+Vemos que no primeiro data frame temos dados do id do filme, o título e os gêneros.
+
+```{r}
+head(ratings)
+```
+
+No segundo data frame temos dados do ID do usuário, ID do filme, nota dada pelo usuário e data e hora da avaliação.
+
+Para a primeira parte, iremos escolher a saga de Harry Potter.
+
+```{r}
+harry.potter.movies <- movies %>%
+  filter(
+      grepl("Harry Potter", title)
+      )
+
+harry.potter.ratings <- ratings %>%
+  filter(movieId %in% harry.potter.movies$movieId)
+```
+
+Vejamos quantas avaliações temos de cada filme:
+
+```{r}
+harry.potter.rating.number <- harry.potter.ratings %>%
+  group_by(movieId) %>%
+  summarise(quantidade = n())
+
+summary(harry.potter.rating.number)
+```
+
+Vemos que existe um filme que obteve 28 avaliações na nossa amostra, enquanto o máximo foi 82.
+
+Vejamos a distribuição das avaliações dos usuários:
+
+```{r}
+ggplot(harry.potter.ratings, aes(rating)) +
+  geom_bar() + 
+  facet_wrap(~movieId, scales = c("free_y"))
+```
+
+As avaliações dadas pelos usuários são mais enviesadas a esquerda, porém nada que seja exagerado.
+
+Agora iremos ver qual dos episódios da saga há melhor avaliação. Para fazer a mesma, iremos usar a média, visto que os dados vistos acima não tem valores extremos.
+
+```{r}
+boot.media.hp1 = bootstrap(filter(harry.potter.ratings, movieId == 4896), mean(rating), R = 1000)
+media.hp1 = CI.bca(boot.media.hp1, probs = c(.025, .975))
+
+boot.media.hp2 = bootstrap(filter(harry.potter.ratings, movieId == 5816), mean(rating), R = 1000)
+media.hp2 = CI.bca(boot.media.hp2, probs = c(.025, .975))
+
+boot.media.hp3 = bootstrap(filter(harry.potter.ratings, movieId == 8368), mean(rating), R = 1000)
+media.hp3 = CI.bca(boot.media.hp3, probs = c(.025, .975))
+
+boot.media.hp4 = bootstrap(filter(harry.potter.ratings, movieId == 40815), mean(rating), R = 1000)
+media.hp4 = CI.bca(boot.media.hp4, probs = c(.025, .975))
+
+boot.media.hp5 = bootstrap(filter(harry.potter.ratings, movieId == 54001), mean(rating), R = 1000)
+media.hp5 = CI.bca(boot.media.hp5, probs = c(.025, .975))
+
+boot.media.hp6 = bootstrap(filter(harry.potter.ratings, movieId == 69844), mean(rating), R = 1000)
+media.hp6 = CI.bca(boot.media.hp6, probs = c(.025, .975))
+
+boot.media.hp7.1 = bootstrap(filter(harry.potter.ratings, movieId == 81834), mean(rating), R = 1000)
+media.hp7.1 = CI.bca(boot.media.hp7.1, probs = c(.025, .975))
+
+boot.media.hp7.2 = bootstrap(filter(harry.potter.ratings, movieId == 88125), mean(rating), R = 1000)
+media.hp7.2 = CI.bca(boot.media.hp7.2, probs = c(.025, .975))
+
+medias.hp <- data.frame(
+  rbind(
+    c("HP1", media.hp1),
+    c("HP2", media.hp2),
+    c("HP3", media.hp3),
+    c("HP4", media.hp4),
+    c("HP5", media.hp5),
+    c("HP6", media.hp6),
+    c("HP7.1", media.hp7.1),
+    c("HP7.2", media.hp7.2)
+  )
+)
+
+names(medias.hp) = c("titulo", "limite.inferior", "limite.superior")
+
+ggplot(medias.hp, aes(x = titulo, ymin = limite.inferior, ymax = limite.superior)) +
+  geom_errorbar(width = .2) +
+  ggtitle("Intervalo de confiança da estimativa \nda médias das notas dos filmes de Harry Potter")
+```
+
+Como podemos ver acima não podemos afirmar que um episódio de Harry Potter seja significativamente melhor que os outros, de acordo com suas avaliações, visto a sobreposição dos intervalos de confiança. Contudo, apesar da sobreposição entre o intervalo de confiança do primeiro filme e do último existir, é bem pequena. Vamos verificar se existe mesmo uma diferença entre eles:
+
+```{r}
+
+```
+
+
+Vamos ver para qual dos episódios há mais variação nas notas atribuídas ao filme:
+
+
