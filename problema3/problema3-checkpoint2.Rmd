@@ -3,12 +3,13 @@ title: "problema3-checkpoint2"
 output: html_document
 ---
 
-```{r}
+```{r, message=FALSE, echo=FALSE}
 library(dplyr)
 library(corrplot)
 library(ggplot2)
 library(reshape2)
 library(Rtsne)
+library(ggfortify)
 set.seed(123456)
 ```
 
@@ -18,7 +19,7 @@ emendas.areas.parlamentar <- read.csv("emendas_area_parlamentar.csv")
 
 Vamos inicialmente ver quais dados temos:
 
-```{r}
+```{r, message=FALSE, echo=FALSE}
 emendas.areas.parlamentar %>% head()
 ```
 
@@ -26,7 +27,7 @@ Vemos que cada observação é um parlamentar, onde a primeira coluna é o nome 
 
 Vamos ver como se comportam os dados das áreas:
 
-```{r}
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
 melted.emendas.areas.parlamentar <- melt(emendas.areas.parlamentar, id=c("NOME_PARLAMENTAR")) 
 
 ggplot(melted.emendas.areas.parlamentar, aes(value)) +
@@ -36,7 +37,7 @@ ggplot(melted.emendas.areas.parlamentar, aes(value)) +
 
 Como vemos, os dados são bastante enviesados, logo iremos utilizar a função log em cima dos mesmos:
 
-```{r}
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
 melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
   mutate(
     log.value = log(value)
@@ -51,7 +52,7 @@ Grande parte dos dados parecem seguir uma distribuição normal, ou pelo menos p
 
 Vamos remover os valores infinitos gerados pelo log:
 
-```{r}
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
 melted.emendas.areas.parlamentar <- melted.emendas.areas.parlamentar %>%
   mutate(
     non.infinite.log.value = ifelse(is.infinite(log.value), 0, log.value)
@@ -67,23 +68,35 @@ row.names(emendas.area.2) <- as.character(emendas.area.2$NOME_PARLAMENTAR)
 
 Agora vamos reduzir a dimensão dos dados utilizando a técnica PCA:
 
-```{r}
+```{r, fig.height=10, fig.width=10}
 principal.components <- prcomp(select(emendas.area.2, -NOME_PARLAMENTAR), scale = TRUE)
-#kable(principal.components$rotation)
-#biplot(principal.components, scale = 0)
-
-#autoplot(principal.components, label = TRUE, label.size = 3, shape = FALSE)
 
 autoplot(principal.components, label = TRUE, label.size = 3, shape = FALSE, 
          loadings = TRUE, loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3)
+         loadings.label = TRUE, loadings.label.size = 4)
 ```
+
+Para melhorar a visualização dos vetores que representam as variáveis vamos retirar os nomes dos parlamentares:
+
+```{r, fig.height=10, fig.width=10}
+autoplot(principal.components, shape = TRUE, 
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 4)
+```
+
+Vemos 3 sentidos mais gerais em que os vetores apontam:
+
+* O sentido de defesa nacional
+* O sentido próximo de gestão ambiental
+* O sentido próximo de agricultura
+
+Além disso, conseguimos perceber 2 grandes grupos, um que tem valores de gestão ambiental, indústria e ciência e tecnologia mais altos e o outro são os demais, que estão mais condensados.
 
 Vamos ver qual a porcentagem da variância explicada quando reduzimos as dimensões:
 
 ```{r}
 plot_pve <- function(prout){
-  pr.var <- pr.out$sdev ** 2
+  pr.var <- prout$sdev ** 2
   pve <- pr.var / sum(pr.var)
   df = data.frame(x = 1:NROW(pve), y = cumsum(pve))
   ggplot(df, aes(x = x, y = y)) + 
@@ -99,29 +112,50 @@ Vemos que infelizmente ao reduzir a apenas 2 dimensões perdemos significativame
 
 Agora vamos reduzir as dimensões utilizando outra técnica chamada t-SNE:
 
-```{r}
-# emendas.area.3 <- emendas.area.2 %>%
-#   group_by(NOME_PARLAMENTAR) %>%
-#   summarise_all()
+```{r, fig.height=10, fig.width=10, message=FALSE, echo=FALSE, warning=FALSE}
 tsne.dim = Rtsne(select(emendas.area.2, -NOME_PARLAMENTAR), 
                  verbose = TRUE, 
-                 check_duplicates = FALSE)
+                 check_duplicates = FALSE,
+                 scale = TRUE)
+
+
+df = as.data.frame(tsne.dim$Y)
+df$NOME_PARLAMENTAR = emendas.area.2$NOME_PARLAMENTAR
+
+ggplot(df, aes(x = V1, y = V2, label = NOME_PARLAMENTAR)) + 
+  geom_point(alpha = 0.8, size = 3, color = "tomato") 
+
+ggplot(df, aes(x = V1, y = V2, label = NOME_PARLAMENTAR)) + 
+  geom_point(alpha = 0.2, size = 3, color = "tomato") + 
+  geom_text(alpha = .7, size = 3, hjust = -.2)
 ```
 
+Utilizando a técnica t-SNE, conseguimos identificar 4 grupos maiores, porém não é possível distinguir qual a relação entre os tipos de gasto e os grupos. Com isso, iremos optar pelo PSA para continuar nossa análise.
 
+Na atividade passada, propusemos 4 grupos utilizando a técnica kmeans e fizemos as seguintes anotações:
 
+* O grupo 1 se destaca em investir um pouco mais que os outros em Organização Agrária.
+* O grupo 2 se destaca em não investir em Saneamento, Urbanismo, Agricultura e Assistência Social.
+* O grupo 3 se destaca em não investir em Cultura, Comércio e Serviços.
+* O grupo 4 se destaca em investir em Ciência e tecnologia, Gestão Ambiental e Indústria.
 
+Vamos repetir o plot gerado acima para facilitar a análise:
 
+```{r, fig.height=10, fig.width=10}
+autoplot(principal.components, shape = TRUE, 
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 4)
+```
 
+Podemos notar o seguinte:
 
+* O grupo 4 se encontra na parte superior do gráfico
+* O grupo 3 poderia ser o grupo que tem maiores valores de defesa nacional, visto que cultura e comécios e serviços tem os vetores com mesma direção e sentidos contrários, ou pelo menos perto.
+* O grupo 2 poderia ser descrito pelos que estão próximos do centro dos vetores, visto que não investem em saneamento, urbanismo, agricultura e assistência social.
+* O grupo 1 pode ser o que tem maior valor de organização agrária, sendo os localizados mais abaixo e a direita.
 
+Como reduzimos as dimensões de 17 para 2, perdemos bastante variabilidade nos dados, mas mesmo assim conseguimos ver uma boa relação entre os grupos e variáveis descritas acima.
 
+Se houvesse uma menor perda de variabilidade dos dados com a redução de dimensões, também seríamos capaz de afirmar que existe uma relação entre algumas variáveis, tais como Gestão Ambiental, Indústria e Ciência e Tecnologia, mas, como vimos acima, a perda foi considerável, logo, nada podemos afirmar sobre este assunto.
 
-
-
-
-
-
-
-
-
+No final, apesar de toda a perda de variabilidade, podemos concluir que a redução de dimensionalidade foi satisfatória, visto a relação dos vetores e as anotações feitas a partir do kmeans no checkpoint passado.
