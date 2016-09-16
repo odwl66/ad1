@@ -1,0 +1,5 @@
+1. Quanto mais popular, mais bem avaliado é o filme?
+R - Acredito que sim, pois, no meu ponto de vista, um filme que é um sucesso de bilheteria tende a ser bom.
+
+4. Existe relação entre o dia da semana e a avaliação?
+R - Acredito que sim, pois normalmente no final de semana as pessoas tendem a estar mais relaxadas e avaliam melhor.
