@@ -1,0 +1,57 @@
+---
+title: "Problema 5 - Checkpoint 2"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+Temos a seguir dados de encontros relâmpago envolvendo 310 jovens americanos.
+
+```{r}
+romance <- read.csv("romance.csv")
+```
+
+Vamos verificar a estrutura dos dados:
+
+```{r}
+summary(romance)
+```
+
+Vamos fazer as adaptações necessárias:
+
+```{r}
+romance <- romance %>%
+  mutate(
+    gender = as.factor(ifelse(gender == 0, "F", "M")),
+    race = as.factor(race),
+    samerace = as.factor(samerace)
+  )
+```
+
+Vejamos um overview gráfico, agora que fizemos algumas alterações na estrutura:
+
+```{r}
+ggplot(romance, aes(x = gender, y = age)) +
+  geom_boxplot() +
+  ggtitle("Idade de acordo com o gênero")
+```
+
+Vemos que as idades dos participantes são bem parecidas, sendo os homens um pouco mais velhos.
+
+```{r}
+ggplot(romance, aes(race)) +
+  geom_bar() +
+  ggtitle("Quantidade de pessoas de cada raça")
+```
+
+Infelizmente não temos quais as raças de cada pessoa, apenas um número para representá-lo. Mesmo assim, podemos ver que a classe 2 tem bem mais pessoas que as demais.
+
+```{r}
+ggplot(romance, aes(x = as.factor(samerace), y = like)) +
+  geom_boxplot()
+```
+
+Vemos que felizmente o fato da pessoa ser da mesma raça não influencia se ela gosta ou não dessa pessoa.
